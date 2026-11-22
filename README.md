@@ -1,5 +1,7 @@
 # agentkit
 
+[![tests](https://github.com/busnis887-design/agentkit/actions/workflows/tests.yml/badge.svg)](https://github.com/busnis887-design/agentkit/actions/workflows/tests.yml) ![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue) [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+
 A compact, auditable **tool-calling agent runtime** in Python. It implements the full agent loop — decide, call tool, observe, repeat — with explicit traces, safety limits, and tool schemas ready to hand to an LLM.
 
 ## Features

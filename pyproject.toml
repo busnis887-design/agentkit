@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agentkit"
-version = "0.1.0"
-description = "A small, auditable tool-calling agent runtime with traces and safety limits"
+version = "0.2.0"
+description = "Auditable tool-calling agent runtime with LLM planners, memory, traces and safety limits"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }

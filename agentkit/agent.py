@@ -87,9 +87,11 @@ class Agent:
         registry: ToolRegistry | None = None,
         policy: Policy | None = None,
         allowed_tools: list[str] | None = None,
+        memory: Any | None = None,
     ) -> None:
         self.registry = registry or create_default_registry()
         self.policy = policy or RuleBasedPolicy()
+        self.memory = memory
         if allowed_tools is not None:
             missing = set(allowed_tools) - set(self.registry.names())
             if missing:
@@ -100,6 +102,8 @@ class Agent:
         if max_steps <= 0:
             raise ValueError("max_steps must be positive")
         trace = Trace(goal=goal)
+        if self.memory is not None:
+            self.memory.add("user", goal)
 
         for _ in range(max_steps):
             decision = self.policy.decide(goal, self.registry, trace.steps)
@@ -112,10 +116,15 @@ class Agent:
             trace.steps.append(
                 Step(thought, tool_name, arguments, str(observation))
             )
+            if self.memory is not None:
+                self.memory.add("assistant", {"tool": tool_name, "arguments": arguments})
+                self.memory.add("user", str(observation))
 
         trace.final_answer = (
             trace.steps[-1].observation
             if trace.steps
             else "I don't have a tool that can help with this goal."
         )
+        if self.memory is not None:
+            self.memory.add("assistant", trace.final_answer)
         return trace

@@ -6,6 +6,8 @@ A compact, auditable **tool-calling agent runtime** in Python. It implements the
 
 ## Features
 
+- `LLMPolicy` planner using OpenAI-compatible tool calls — HTTP client is injectable, so it is testable offline
+- `ConversationMemory` bounded ring buffer for short-term agent context
 - `Tool` / `ToolRegistry` with OpenAI-compatible function schemas
 - Safe arithmetic tool built on `ast` (no `eval`, exponent guard)
 - Deterministic `RuleBasedPolicy` planner so demos and tests need no API key
@@ -39,6 +41,20 @@ trace = Agent(registry=registry, allowed_tools=["calculator"]).run(
 )
 print(trace.as_lines())
 ```
+
+## v0.2 highlights
+
+```python
+from agentkit import Agent, ConversationMemory, LLMPolicy, create_default_registry
+
+registry = create_default_registry()
+policy = LLMPolicy(registry)                  # uses OPENAI_API_KEY
+memory = ConversationMemory(capacity=10)
+trace = Agent(registry, policy, memory=memory).run("Calculate 12 * 8 + 4")
+print(trace.as_lines(), memory.as_messages())
+```
+
+Swap in a fake client for tests — the runtime never depends directly on the network.
 
 ## Architecture
 

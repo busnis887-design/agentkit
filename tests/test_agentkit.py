@@ -1,10 +1,15 @@
 import unittest
 
+import json
+
 from agentkit import (
     Agent,
+    ConversationMemory,
+    LLMPolicy,
     RuleBasedPolicy,
     Tool,
     ToolRegistry,
+    __version__,
     calculator,
     create_default_registry,
     current_time,
@@ -85,6 +90,87 @@ class AgentTests(unittest.TestCase):
     def test_unknown_allowed_tool(self):
         with self.assertRaises(ValueError):
             Agent(allowed_tools=["nope"])
+
+
+class V02Tests(unittest.TestCase):
+    def test_version(self):
+        self.assertEqual(__version__, "0.2.0")
+
+    def test_memory_ring_buffer(self):
+        memory = ConversationMemory(capacity=3)
+        for i in range(5):
+            memory.add("user", i)
+        self.assertEqual(len(memory), 3)
+        self.assertEqual([i.content for i in memory.recent()], [2, 3, 4])
+        self.assertEqual(len(memory.as_messages()), 3)
+        memory.clear()
+        self.assertEqual(len(memory), 0)
+
+    def test_agent_writes_to_memory(self):
+        memory = ConversationMemory()
+        trace = Agent(memory=memory).run("Calculate 2 + 3")
+        self.assertEqual(trace.final_answer, "5")
+        self.assertEqual(memory.recent()[0].content, "Calculate 2 + 3")
+        self.assertEqual(memory.recent()[-1].content, "5")
+
+    def test_llm_policy_with_fake_client(self):
+        registry = create_default_registry()
+        seen = {}
+
+        def fake_client(messages, tools):
+            seen["messages"] = messages
+            seen["tools"] = tools
+            return {
+                "choices": [
+                    {
+                        "message": {
+                            "content": "compute it",
+                            "tool_calls": [
+                                {
+                                    "function": {
+                                        "name": "calculator",
+                                        "arguments": json.dumps({"expression": "6*7"}),
+                                    }
+                                }
+                            ],
+                        }
+                    }
+                ]
+            }
+
+        policy = LLMPolicy(registry, client=fake_client)
+        trace = Agent(registry=registry, policy=policy).run("What is 6*7?")
+        self.assertEqual(trace.final_answer, "42")
+        self.assertEqual(seen["tools"][0]["type"], "function")
+        self.assertEqual(seen["messages"][0]["role"], "system")
+
+    def test_llm_policy_no_tool_call(self):
+        registry = create_default_registry()
+        policy = LLMPolicy(
+            registry,
+            client=lambda m, t: {"choices": [{"message": {"content": "done"}}]},
+        )
+        trace = Agent(registry=registry, policy=policy).run("hello")
+        self.assertEqual(trace.steps, [])
+
+    def test_llm_policy_rejects_unknown_tool(self):
+        registry = create_default_registry()
+        policy = LLMPolicy(
+            registry,
+            client=lambda m, t: {
+                "choices": [
+                    {
+                        "message": {
+                            "tool_calls": [
+                                {"function": {"name": "nope", "arguments": "{}"}}
+                            ]
+                        }
+                    }
+                ]
+            },
+        )
+        with self.assertRaises(ValueError):
+            Agent(registry=registry, policy=policy).run("anything")
 
 
 if __name__ == "__main__":
